@@ -11,13 +11,12 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 
 def get_db_connection():
     conn = psycopg2.connect(
-        dbname="tgdđ_gis",
-        user="postgres",
-        password="1",
-        host="localhost",
-        port="5432"
+        dbname=os.environ.get('DB_NAME'),
+        user=os.environ.get('DB_USER'),
+        password=os.environ.get('DB_PASSWORD'),
+        host=os.environ.get('DB_HOST'),
+        port=os.environ.get('DB_PORT')
     )
-    logging.debug("Kết nối database thành công")
     return conn
 
 @app.route('/')
@@ -247,4 +246,4 @@ def change_password():
     return jsonify({"success": True, "message": "Password changed successfully"}), 200
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
