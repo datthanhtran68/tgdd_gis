@@ -1,0 +1,51 @@
+name,address,phone,open_hours,district,latitude,longitude
+TGDĐ Hoàn Kiếm 1,123 Lý Thường Kiệt, Hoàn Kiếm, Hà Nội,0123456781,8:00-22:00,Hoàn Kiếm,21.0285,105.8542
+TGDĐ Hoàn Kiếm 2,456 Hàng Bông, Hoàn Kiếm, Hà Nội,0123456782,8:00-22:00,Hoàn Kiếm,21.0290,105.8530
+TGDĐ Ba Đình 1,789 Kim Mã, Ba Đình, Hà Nội,0123456783,8:00-22:00,Ba Đình,21.0335,105.8492
+TGDĐ Ba Đình 2,101 Nguyễn Thái Học, Ba Đình, Hà Nội,0123456784,8:00-22:00,Ba Đình,21.0320,105.8450
+TGDĐ Đống Đa 1,202 Tôn Đức Thắng, Đống Đa, Hà Nội,0123456785,8:00-22:00,Đống Đa,21.0150,105.8245
+TGDĐ Đống Đa 2,303 Láng, Đống Đa, Hà Nội,0123456786,8:00-22:00,Đống Đa,21.0165,105.8200
+TGDĐ Cầu Giấy 1,404 Xuân Thủy, Cầu Giấy, Hà Nội,0123456787,8:00-22:00,Cầu Giấy,21.0387,105.7846
+TGDĐ Cầu Giấy 2,505 Trần Thái Tông, Cầu Giấy, Hà Nội,0123456788,8:00-22:00,Cầu Giấy,21.0390,105.7880
+TGDĐ Tây Hồ 1,606 Lạc Long Quân, Tây Hồ, Hà Nội,0123456789,8:00-22:00,Tây Hồ,21.0668,105.8243
+TGDĐ Tây Hồ 2,707 Âu Cơ, Tây Hồ, Hà Nội,0123456790,8:00-22:00,Tây Hồ,21.0680,105.8200
+TGDĐ Thanh Xuân 1,808 Nguyễn Trãi, Thanh Xuân, Hà Nội,0123456791,8:00-22:00,Thanh Xuân,20.9945,105.8012
+TGDĐ Thanh Xuân 2,909 Lê Văn Lương, Thanh Xuân, Hà Nội,0123456792,8:00-22:00,Thanh Xuân,20.9960,105.8050
+TGDĐ Hà Đông 1,101 Trần Phú, Hà Đông, Hà Nội,0123456793,8:00-22:00,Hà Đông,20.9714,105.7776
+TGDĐ Hà Đông 2,202 Quang Trung, Hà Đông, Hà Nội,0123456794,8:00-22:00,Hà Đông,20.9730,105.7800
+TGDĐ Long Biên 1,303 Nguyễn Văn Cừ, Long Biên, Hà Nội,0123456795,8:00-22:00,Long Biên,21.0456,105.8854
+TGDĐ Long Biên 2,404 Ngọc Lâm, Long Biên, Hà Nội,0123456796,8:00-22:00,Long Biên,21.0460,105.8880
+TGDĐ Hoàng Mai 1,505 Giáp Nhị, Hoàng Mai, Hà Nội,0123456797,8:00-22:00,Hoàng Mai,20.9867,105.8578
+TGDĐ Hoàng Mai 2,606 Tam Trinh, Hoàng Mai, Hà Nội,0123456798,8:00-22:00,Hoàng Mai,20.9880,105.8600
+TGDĐ Đông Anh 1,707 Cao Lỗ, Đông Anh, Hà Nội,0123456799,8:00-22:00,Đông Anh,21.1398,105.8491
+TGDĐ Đông Anh 2,808 Quốc lộ 3, Đông Anh, Hà Nội,0123456800,8:00-22:00,Đông Anh,21.1410,105.8520
+TGDĐ Gia Lâm 1,909 Hà Huy Tập, Gia Lâm, Hà Nội,0123456801,8:00-22:00,Gia Lâm,21.0180,105.9170
+TGDĐ Gia Lâm 2,101 Ngô Xuân Quảng, Gia Lâm, Hà Nội,0123456802,8:00-22:00,Gia Lâm,21.0200,105.9200
+TGDĐ Bắc Từ Liêm 1,202 Phạm Văn Đồng, Bắc Từ Liêm, Hà Nội,0123456803,8:00-22:00,Bắc Từ Liêm,21.0710,105.7780
+TGDĐ Bắc Từ Liêm 2,303 Cổ Nhuế, Bắc Từ Liêm, Hà Nội,0123456804,8:00-22:00,Bắc Từ Liêm,21.0730,105.7800
+TGDĐ Nam Từ Liêm 1,404 Đại Mỗ, Nam Từ Liêm, Hà Nội,0123456805,8:00-22:00,Nam Từ Liêm,21.0080,105.7470
+TGDĐ Nam Từ Liêm 2,505 Mễ Trì, Nam Từ Liêm, Hà Nội,0123456806,8:00-22:00,Nam Từ Liêm,21.0100,105.7500
+TGDĐ Hai Bà Trưng 1,606 Trần Khát Chân, Hai Bà Trưng, Hà Nội,0123456807,8:00-22:00,Hai Bà Trưng,21.0120,105.8620
+TGDĐ Hai Bà Trưng 2,707 Bạch Đằng, Hai Bà Trưng, Hà Nội,0123456808,8:00-22:00,Hai Bà Trưng,21.0140,105.8650
+TGDĐ Ba Vì 1,808 Quốc lộ 32, Ba Vì, Hà Nội,0123456809,8:00-22:00,Ba Vì,21.1200,105.4200
+TGDĐ Ba Vì 2,909 Tản Lĩnh, Ba Vì, Hà Nội,0123456810,8:00-22:00,Ba Vì,21.1220,105.4250
+TGDĐ Chương Mỹ 1,101 Chúc Sơn, Chương Mỹ, Hà Nội,0123456811,8:00-22:00,Chương Mỹ,20.8800,105.6800
+TGDĐ Chương Mỹ 2,202 Quốc lộ 6, Chương Mỹ, Hà Nội,0123456812,8:00-22:00,Chương Mỹ,20.8820,105.6850
+TGDĐ Đan Phượng 1,303 Tây Sơn, Đan Phượng, Hà Nội,0123456813,8:00-22:00,Đan Phượng,21.0800,105.6700
+TGDĐ Đan Phượng 2,404 Thọ Xuân, Đan Phượng, Hà Nội,0123456814,8:00-22:00,Đan Phượng,21.0820,105.6750
+TGDĐ Hoài Đức 1,505 An Khánh, Hoài Đức, Hà Nội,0123456815,8:00-22:00,Hoài Đức,21.0500,105.7000
+TGDĐ Hoài Đức 2,606 Đức Thượng, Hoài Đức, Hà Nội,0123456816,8:00-22:00,Hoài Đức,21.0520,105.7050
+TGDĐ Mê Linh 1,707 Quốc lộ 23, Mê Linh, Hà Nội,0123456817,8:00-22:00,Mê Linh,21.1800,105.7200
+TGDĐ Mê Linh 2,808 Tiền Phong, Mê Linh, Hà Nội,0123456818,8:00-22:00,Mê Linh,21.1820,105.7250
+TGDĐ Mỹ Đức 1,909 Hợp Thanh, Mỹ Đức, Hà Nội,0123456819,8:00-22:00,Mỹ Đức,20.7000,105.7500
+TGDĐ Mỹ Đức 2,101 Đại Nghĩa, Mỹ Đức, Hà Nội,0123456820,8:00-22:00,Mỹ Đức,20.7020,105.7550
+TGDĐ Phú Xuyên 1,202 Phú Túc, Phú Xuyên, Hà Nội,0123456821,8:00-22:00,Phú Xuyên,20.7500,105.9000
+TGDĐ Phú Xuyên 2,303 Văn Hoàng, Phú Xuyên, Hà Nội,0123456822,8:00-22:00,Phú Xuyên,20.7520,105.9050
+TGDĐ Phúc Thọ 1,404 Võng Xuyên, Phúc Thọ, Hà Nội,0123456823,8:00-22:00,Phúc Thọ,21.1000,105.5500
+TGDĐ Phúc Thọ 2,505 Tam Hiệp, Phúc Thọ, Hà Nội,0123456824,8:00-22:00,Phúc Thọ,21.1020,105.5550
+TGDĐ Quốc Oai 1,606 Quốc Oai, Quốc Oai, Hà Nội,0123456825,8:00-22:00,Quốc Oai,20.9500,105.6200
+TGDĐ Quốc Oai 2,707 Đông Yên, Quốc Oai, Hà Nội,0123456826,8:00-22:00,Quốc Oai,20.9520,105.6250
+TGDĐ Sóc Sơn 1,808 Sóc Sơn, Sóc Sơn, Hà Nội,0123456827,8:00-22:00,Sóc Sơn,21.2500,105.8500
+TGDĐ Sóc Sơn 2,909 Bắc Sơn, Sóc Sơn, Hà Nội,0123456828,8:00-22:00,Sóc Sơn,21.2520,105.8550
+TGDĐ Thạch Thất 1,101 Bình Yên, Thạch Thất, Hà Nội,0123456829,8:00-22:00,Thạch Thất,21.0200,105.5800
+TGDĐ Thạch Thất 2,202 Chàng Sơn, Thạch Thất, Hà Nội,0123456830,8:00-22:00,Thạch Thất,21.0220,105.5850
