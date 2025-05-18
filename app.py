@@ -4,7 +4,7 @@ import json
 from psycopg2 import sql
 import logging
 import bcrypt
-
+import os
 app = Flask(__name__)
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
