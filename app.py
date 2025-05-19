@@ -11,14 +11,18 @@ app = Flask(__name__, static_folder='static', template_folder='templates')
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def get_db_connection():
-    conn = psycopg2.connect(
-        dbname=os.environ.get('DB_NAME'),
-        user=os.environ.get('DB_USER'),
-        password=os.environ.get('DB_PASSWORD'),
-        host=os.environ.get('DB_HOST'),
-        port=os.environ.get('DB_PORT')
-    )
-    return conn
+    try:
+        conn = psycopg2.connect(
+            dbname=os.environ.get('DB_NAME'),
+            user=os.environ.get('DB_USER'),
+            password=os.environ.get('DB_PASSWORD'),
+            host=os.environ.get('DB_HOST'),
+            port=os.environ.get('DB_PORT')
+        )
+        return conn
+    except Exception as e:
+        logging.error(f"Database connection failed: {e}")
+        raise
 
 @app.route('/')
 def index():
@@ -34,64 +38,75 @@ def get_stores():
     district = request.args.get('district', '')
     conn = get_db_connection()
     cur = conn.cursor()
-    query = """
-        SELECT s.name, s.address, s.phone, s.open_hours, s.district, ST_X(s.geom) as lon, ST_Y(s.geom) as lat, s.image
-        FROM stores s
-    """
-    params = []
-    if search_query or district:
-        query += " WHERE "
-        conditions = []
-        if search_query:
-            conditions.append("s.name ILIKE %s")
-            params.append(f"%{search_query}%")
-        if district:
-            conditions.append("s.district = %s")
-            params.append(district)
-        query += " AND ".join(conditions)
-    cur.execute(query, params)
-    stores = [
-        {
-            "name": row[0],
-            "address": row[1],
-            "phone": row[2],
-            "open_hours": row[3],
-            "district": row[4],
-            "longitude": row[5],
-            "latitude": row[6],
-            "image": row[7] if row[7] else None
-        } for row in cur.fetchall()
-    ]
-    cur.close()
-    conn.close()
-    return jsonify(stores)
+    try:
+        query = """
+            SELECT s.name, s.address, s.phone, s.open_hours, s.district, ST_X(s.geom) as lon, ST_Y(s.geom) as lat, s.image
+            FROM stores s
+        """
+        params = []
+        if search_query or district:
+            query += " WHERE "
+            conditions = []
+            if search_query:
+                conditions.append("s.name ILIKE %s")
+                params.append(f"%{search_query}%")
+            if district:
+                conditions.append("s.district = %s")
+                params.append(district)
+            query += " AND ".join(conditions)
+        cur.execute(query, params)
+        stores = [
+            {
+                "name": row[0],
+                "address": row[1],
+                "phone": row[2],
+                "open_hours": row[3],
+                "district": row[4],
+                "longitude": row[5],
+                "latitude": row[6],
+                "image": row[7] if row[7] else None
+            } for row in cur.fetchall()
+        ]
+        return jsonify(stores)
+    except Exception as e:
+        logging.error(f"Error in /api/stores GET: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
 
 @app.route('/api/stores', methods=['POST'])
 def create_store():
     data = request.get_json()
-    if not all(key in data for key in ['name', 'address', 'phone', 'open_hours', 'district', 'latitude', 'longitude']):
+    required_fields = ['name', 'address', 'phone', 'open_hours', 'district', 'latitude', 'longitude']
+    if not all(key in data for key in required_fields):
         return jsonify({"error": "Thiếu thông tin chi nhánh"}), 400
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO stores (name, address, phone, open_hours, district, geom, image)
-        VALUES (%s, %s, %s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326), %s)
-        RETURNING id
-    """, (
-        data['name'],
-        data['address'],
-        data['phone'],
-        data['open_hours'],
-        data['district'],
-        data['longitude'],
-        data['latitude'],
-        data.get('image')
-    ))
-    store_id = cur.fetchone()[0]
-    conn.commit()
-    cur.close()
-    conn.close()
-    return jsonify({"id": store_id, "message": "Store created"}), 201
+    try:
+        cur.execute("""
+            INSERT INTO stores (name, address, phone, open_hours, district, geom, image)
+            VALUES (%s, %s, %s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326), %s)
+            RETURNING id
+        """, (
+            data['name'],
+            data['address'],
+            data['phone'],
+            data['open_hours'],
+            data['district'],
+            float(data['longitude']),
+            float(data['latitude']),
+            data.get('image')
+        ))
+        store_id = cur.fetchone()[0]
+        conn.commit()
+        return jsonify({"id": store_id, "message": "Store created"}), 201
+    except Exception as e:
+        logging.error(f"Error in /api/stores POST: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
 
 @app.route('/api/stores', methods=['PUT'])
 def update_store():
@@ -102,55 +117,56 @@ def update_store():
     
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("""
-        SELECT name, address, phone, open_hours, district, image
-        FROM stores
-        WHERE name = %s
-    """, (data['original_name'],))
-    store = cur.fetchone()
-    if not store:
-        cur.close()
-        conn.close()
+    try:
+        cur.execute("""
+            SELECT name, address, phone, open_hours, district, image
+            FROM stores
+            WHERE name = %s
+        """, (data['original_name'],))
+        store = cur.fetchone()
+        if not store:
+            return jsonify({"error": "Store not found"}), 404
+
+        updated_data = {
+            'name': data.get('name', store[0]),
+            'address': data.get('address', store[1]) or store[1],
+            'phone': data.get('phone', store[2]) or store[2],
+            'open_hours': data.get('open_hours', store[3]) or store[3],
+            'district': data.get('district', store[4]) or store[4],
+            'latitude': float(data['latitude']),
+            'longitude': float(data['longitude']),
+            'image': data.get('image', store[5]),
+            'original_name': data['original_name']
+        }
+
+        cur.execute("""
+            UPDATE stores
+            SET name = %s, address = %s, phone = %s, open_hours = %s, district = %s,
+                geom = ST_SetSRID(ST_MakePoint(%s, %s), 4326), image = %s
+            WHERE name = %s
+            RETURNING id
+        """, (
+            updated_data['name'],
+            updated_data['address'],
+            updated_data['phone'],
+            updated_data['open_hours'],
+            updated_data['district'],
+            updated_data['longitude'],
+            updated_data['latitude'],
+            updated_data['image'],
+            updated_data['original_name']
+        ))
+        result = cur.fetchone()
+        if result:
+            conn.commit()
+            return jsonify({"message": "Store updated"}), 200
         return jsonify({"error": "Store not found"}), 404
-
-    updated_data = {
-        'name': data.get('name', store[0]),
-        'address': data.get('address', store[1]) or store[1],
-        'phone': data.get('phone', store[2]) or store[2],
-        'open_hours': data.get('open_hours', store[3]) or store[3],
-        'district': data.get('district', store[4]) or store[4],
-        'latitude': float(data['latitude']),
-        'longitude': float(data['longitude']),
-        'image': data.get('image', store[5]),
-        'original_name': data['original_name']
-    }
-
-    cur.execute("""
-        UPDATE stores
-        SET name = %s, address = %s, phone = %s, open_hours = %s, district = %s,
-            geom = ST_SetSRID(ST_MakePoint(%s, %s), 4326), image = %s
-        WHERE name = %s
-        RETURNING id
-    """, (
-        updated_data['name'],
-        updated_data['address'],
-        updated_data['phone'],
-        updated_data['open_hours'],
-        updated_data['district'],
-        updated_data['longitude'],
-        updated_data['latitude'],
-        updated_data['image'],
-        updated_data['original_name']
-    ))
-    result = cur.fetchone()
-    if result:
-        conn.commit()
+    except Exception as e:
+        logging.error(f"Error in /api/stores PUT: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
         cur.close()
         conn.close()
-        return jsonify({"message": "Store updated"}), 200
-    cur.close()
-    conn.close()
-    return jsonify({"error": "Store not found"}), 404
 
 @app.route('/api/stores', methods=['DELETE'])
 def delete_store():
@@ -159,41 +175,54 @@ def delete_store():
         return jsonify({"error": "Thiếu tên chi nhánh"}), 400
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("DELETE FROM stores WHERE name = %s RETURNING id", (name,))
-    result = cur.fetchone()
-    if result:
-        conn.commit()
+    try:
+        cur.execute("DELETE FROM stores WHERE name = %s RETURNING id", (name,))
+        result = cur.fetchone()
+        if result:
+            conn.commit()
+            return jsonify({"message": "Store deleted"}), 200
+        return jsonify({"error": "Store not found"}), 404
+    except Exception as e:
+        logging.error(f"Error in /api/stores DELETE: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
         cur.close()
         conn.close()
-        return jsonify({"message": "Store deleted"}), 200
-    cur.close()
-    conn.close()
-    return jsonify({"error": "Store not found"}), 404
 
 @app.route('/api/districts')
 def get_districts():
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT name, ST_AsGeoJSON(geom) as geom FROM districts")
-    districts = [
-        {
-            "name": row[0],
-            "geom": json.loads(row[1])
-        } for row in cur.fetchall()
-    ]
-    cur.close()
-    conn.close()
-    return jsonify(districts)
+    try:
+        cur.execute("SELECT name, ST_AsGeoJSON(geom) as geom FROM districts")
+        districts = [
+            {
+                "name": row[0],
+                "geom": json.loads(row[1]) if row[1] else None
+            } for row in cur.fetchall()
+        ]
+        return jsonify(districts)
+    except Exception as e:
+        logging.error(f"Error in /api/districts: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
 
 @app.route('/api/stats')
 def get_stats():
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT district, COUNT(*) FROM stores GROUP BY district")
-    stats = {row[0]: row[1] for row in cur.fetchall()}
-    cur.close()
-    conn.close()
-    return jsonify(stats)
+    try:
+        cur.execute("SELECT district, COUNT(*) FROM stores GROUP BY district")
+        stats = {row[0]: row[1] for row in cur.fetchall()}
+        return jsonify(stats)
+    except Exception as e:
+        logging.error(f"Error in /api/stats: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -206,14 +235,18 @@ def login():
 
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT username, password, role FROM users WHERE username = %s", (username,))
-    user = cur.fetchone()
-    cur.close()
-    conn.close()
-
-    if user and user[1] == password:  # So sánh mật khẩu thô
-        return jsonify({"success": True, "isAdmin": user[2] == 'admin'})
-    return jsonify({"success": False, "message": "Invalid username or password"}), 401
+    try:
+        cur.execute("SELECT username, password, role FROM users WHERE username = %s", (username,))
+        user = cur.fetchone()
+        if user and bcrypt.checkpw(password.encode('utf-8'), user[1].encode('utf-8')):
+            return jsonify({"success": True, "isAdmin": user[2] == 'admin'})
+        return jsonify({"success": False, "message": "Invalid username or password"}), 401
+    except Exception as e:
+        logging.error(f"Error in /api/login: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
 
 @app.route('/api/change-password', methods=['POST'])
 def change_password():
@@ -227,24 +260,25 @@ def change_password():
 
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT password FROM users WHERE username = %s", (username,))
-    user = cur.fetchone()
+    try:
+        cur.execute("SELECT password FROM users WHERE username = %s", (username,))
+        user = cur.fetchone()
+        if not user:
+            return jsonify({"success": False, "message": "User not found"}), 404
 
-    if not user:
+        if not bcrypt.checkpw(old_password.encode('utf-8'), user[0].encode('utf-8')):
+            return jsonify({"success": False, "message": "Old password is incorrect"}), 401
+
+        hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        cur.execute("UPDATE users SET password = %s WHERE username = %s", (hashed_password, username))
+        conn.commit()
+        return jsonify({"success": True, "message": "Password changed successfully"}), 200
+    except Exception as e:
+        logging.error(f"Error in /api/change-password: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+    finally:
         cur.close()
         conn.close()
-        return jsonify({"success": False, "message": "User not found"}), 404
-
-    if user[0] != old_password:
-        cur.close()
-        conn.close()
-        return jsonify({"success": False, "message": "Old password is incorrect"}), 401
-
-    cur.execute("UPDATE users SET password = %s WHERE username = %s", (new_password, username))
-    conn.commit()
-    cur.close()
-    conn.close()
-    return jsonify({"success": True, "message": "Password changed successfully"}), 200
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
