@@ -12,18 +12,13 @@ logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %
 
 def get_db_connection():
     try:
-        conn = psycopg2.connect(
-            dbname=os.environ.get('DB_NAME'),
-            user=os.environ.get('DB_USER'),
-            password=os.environ.get('DB_PASSWORD'),
-            host=os.environ.get('DB_HOST'),
-            port=os.environ.get('DB_PORT')
-        )
+        conn = psycopg2.connect(os.environ.get('DATABASE_URL'))
         return conn
     except Exception as e:
         logging.error(f"Database connection failed: {e}")
         raise
 
+# Các route còn lại giữ nguyên
 @app.route('/')
 def index():
     return render_template('index.html')
