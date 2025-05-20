@@ -247,7 +247,7 @@ def login():
         cur = conn.cursor()
         cur.execute("SELECT username, password, role FROM users WHERE username = %s", (username,))
         user = cur.fetchone()
-        if user and bcrypt.checkpw(password.encode('utf-8'), user[1].encode('utf-8')):
+        if user and user[1] == password:  # So sánh trực tiếp
             return jsonify({"success": True, "isAdmin": user[2] == 'admin'})
         return jsonify({"success": False, "message": "Invalid username or password"}), 401
     except Exception as e:
