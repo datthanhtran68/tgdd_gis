@@ -36,6 +36,8 @@ def favicon():
 def get_stores():
     search_query = request.args.get('q', '')
     district = request.args.get('district', '')
+    conn = None
+    cur = None
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -69,8 +71,10 @@ def get_stores():
         logging.error(f"Error in /api/stores GET: {e}")
         return jsonify({"error": str(e)}), 500
     finally:
-        cur.close()
-        conn.close()
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
 @app.route('/api/stores', methods=['POST'])
 def create_store():
@@ -78,6 +82,8 @@ def create_store():
     required_fields = ['name', 'address', 'phone', 'open_hours', 'district', 'latitude', 'longitude']
     if not all(key in data for key in required_fields):
         return jsonify({"error": "Thiếu thông tin chi nhánh"}), 400
+    conn = None
+    cur = None
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -102,8 +108,10 @@ def create_store():
         logging.error(f"Error in /api/stores POST: {e}")
         return jsonify({"error": str(e)}), 500
     finally:
-        cur.close()
-        conn.close()
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
 @app.route('/api/stores', methods=['PUT'])
 def update_store():
@@ -112,6 +120,8 @@ def update_store():
     if not all(key in data for key in required_fields):
         return jsonify({"error": "Thiếu thông tin chi nhánh: yêu cầu name, latitude, longitude, original_name"}), 400
     
+    conn = None
+    cur = None
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -158,14 +168,18 @@ def update_store():
         logging.error(f"Error in /api/stores PUT: {e}")
         return jsonify({"error": str(e)}), 500
     finally:
-        cur.close()
-        conn.close()
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
 @app.route('/api/stores', methods=['DELETE'])
 def delete_store():
     name = request.args.get('name')
     if not name:
         return jsonify({"error": "Thiếu tên chi nhánh"}), 400
+    conn = None
+    cur = None
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -179,11 +193,15 @@ def delete_store():
         logging.error(f"Error in /api/stores DELETE: {e}")
         return jsonify({"error": str(e)}), 500
     finally:
-        cur.close()
-        conn.close()
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
 @app.route('/api/districts')
 def get_districts():
+    conn = None
+    cur = None
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -194,11 +212,15 @@ def get_districts():
         logging.error(f"Error in /api/districts: {e}")
         return jsonify({"error": str(e)}), 500
     finally:
-        cur.close()
-        conn.close()
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
 @app.route('/api/stats')
 def get_stats():
+    conn = None
+    cur = None
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -209,8 +231,10 @@ def get_stats():
         logging.error(f"Error in /api/stats: {e}")
         return jsonify({"error": str(e)}), 500
     finally:
-        cur.close()
-        conn.close()
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -221,6 +245,8 @@ def login():
     if not username or not password:
         return jsonify({"success": False, "message": "Missing username or password"}), 400
 
+    conn = None
+    cur = None
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -233,8 +259,10 @@ def login():
         logging.error(f"Error in /api/login: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
     finally:
-        cur.close()
-        conn.close()
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
 @app.route('/api/change-password', methods=['POST'])
 def change_password():
@@ -246,6 +274,8 @@ def change_password():
     if not username or not old_password or not new_password:
         return jsonify({"success": False, "message": "Missing username, old password, or new password"}), 400
 
+    conn = None
+    cur = None
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -265,8 +295,10 @@ def change_password():
         logging.error(f"Error in /api/change-password: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
     finally:
-        cur.close()
-        conn.close()
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
