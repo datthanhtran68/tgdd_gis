@@ -8,7 +8,7 @@ import os
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def get_db_connection():
     try:
@@ -36,13 +36,10 @@ def favicon():
 def get_stores():
     search_query = request.args.get('q', '')
     district = request.args.get('district', '')
-    conn = get_db_connection()
-    cur = conn.cursor()
     try:
-        query = """
-            SELECT s.name, s.address, s.phone, s.open_hours, s.district, ST_X(s.geom) as lon, ST_Y(s.geom) as lat, s.image
-            FROM stores s
-        """
+        conn = get_db_connection()
+        cur = conn.cursor()
+        query = "SELECT s.name, s.address, s.phone, s.open_hours, s.district, ST_X(s.geom) as lon, ST_Y(s.geom) as lat, s.image FROM stores s"
         params = []
         if search_query or district:
             query += " WHERE "
@@ -81,9 +78,9 @@ def create_store():
     required_fields = ['name', 'address', 'phone', 'open_hours', 'district', 'latitude', 'longitude']
     if not all(key in data for key in required_fields):
         return jsonify({"error": "Thiếu thông tin chi nhánh"}), 400
-    conn = get_db_connection()
-    cur = conn.cursor()
     try:
+        conn = get_db_connection()
+        cur = conn.cursor()
         cur.execute("""
             INSERT INTO stores (name, address, phone, open_hours, district, geom, image)
             VALUES (%s, %s, %s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326), %s)
@@ -115,14 +112,10 @@ def update_store():
     if not all(key in data for key in required_fields):
         return jsonify({"error": "Thiếu thông tin chi nhánh: yêu cầu name, latitude, longitude, original_name"}), 400
     
-    conn = get_db_connection()
-    cur = conn.cursor()
     try:
-        cur.execute("""
-            SELECT name, address, phone, open_hours, district, image
-            FROM stores
-            WHERE name = %s
-        """, (data['original_name'],))
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT name, address, phone, open_hours, district, image FROM stores WHERE name = %s", (data['original_name'],))
         store = cur.fetchone()
         if not store:
             return jsonify({"error": "Store not found"}), 404
@@ -173,9 +166,9 @@ def delete_store():
     name = request.args.get('name')
     if not name:
         return jsonify({"error": "Thiếu tên chi nhánh"}), 400
-    conn = get_db_connection()
-    cur = conn.cursor()
     try:
+        conn = get_db_connection()
+        cur = conn.cursor()
         cur.execute("DELETE FROM stores WHERE name = %s RETURNING id", (name,))
         result = cur.fetchone()
         if result:
@@ -191,16 +184,11 @@ def delete_store():
 
 @app.route('/api/districts')
 def get_districts():
-    conn = get_db_connection()
-    cur = conn.cursor()
     try:
+        conn = get_db_connection()
+        cur = conn.cursor()
         cur.execute("SELECT name, ST_AsGeoJSON(geom) as geom FROM districts")
-        districts = [
-            {
-                "name": row[0],
-                "geom": json.loads(row[1]) if row[1] else None
-            } for row in cur.fetchall()
-        ]
+        districts = [{"name": row[0], "geom": json.loads(row[1]) if row[1] else None} for row in cur.fetchall()]
         return jsonify(districts)
     except Exception as e:
         logging.error(f"Error in /api/districts: {e}")
@@ -211,9 +199,9 @@ def get_districts():
 
 @app.route('/api/stats')
 def get_stats():
-    conn = get_db_connection()
-    cur = conn.cursor()
     try:
+        conn = get_db_connection()
+        cur = conn.cursor()
         cur.execute("SELECT district, COUNT(*) FROM stores GROUP BY district")
         stats = {row[0]: row[1] for row in cur.fetchall()}
         return jsonify(stats)
@@ -233,9 +221,9 @@ def login():
     if not username or not password:
         return jsonify({"success": False, "message": "Missing username or password"}), 400
 
-    conn = get_db_connection()
-    cur = conn.cursor()
     try:
+        conn = get_db_connection()
+        cur = conn.cursor()
         cur.execute("SELECT username, password, role FROM users WHERE username = %s", (username,))
         user = cur.fetchone()
         if user and bcrypt.checkpw(password.encode('utf-8'), user[1].encode('utf-8')):
@@ -258,9 +246,9 @@ def change_password():
     if not username or not old_password or not new_password:
         return jsonify({"success": False, "message": "Missing username, old password, or new password"}), 400
 
-    conn = get_db_connection()
-    cur = conn.cursor()
     try:
+        conn = get_db_connection()
+        cur = conn.cursor()
         cur.execute("SELECT password FROM users WHERE username = %s", (username,))
         user = cur.fetchone()
         if not user:
