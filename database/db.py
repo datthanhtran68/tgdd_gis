@@ -1,17 +1,12 @@
+# database/db.py
+from config import DATABASE_URL
 import psycopg2
 import logging
-from config import DATABASE_CONFIG
 
 def get_db_connection():
-    """
-    Tạo và trả về kết nối đến database PostgreSQL.
-    Returns:
-        connection: Đối tượng kết nối database.
-    """
     try:
-        conn = psycopg2.connect(**DATABASE_CONFIG)
-        logging.debug("Kết nối database thành công")
+        conn = psycopg2.connect(DATABASE_URL)
         return conn
     except Exception as e:
-        logging.error(f"Lỗi kết nối database: {e}")
+        logging.error(f"Database connection failed: {e}")
         raise
