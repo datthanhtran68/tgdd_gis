@@ -1,0 +1,39 @@
+2025-06-05 19:47:22,634 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2025-06-05 19:47:22,634 - INFO - [33mPress CTRL+C to quit[0m
+2025-06-05 19:47:22,636 - INFO -  * Restarting with stat
+2025-06-05 19:47:22,911 - WARNING -  * Debugger is active!
+2025-06-05 19:47:22,916 - INFO -  * Debugger PIN: 142-746-891
+2025-06-05 19:47:30,474 - INFO - 127.0.0.1 - - [05/Jun/2025 19:47:30] "[33mGET / HTTP/1.1[0m" 404 -
+2025-06-05 19:47:30,600 - INFO - 127.0.0.1 - - [05/Jun/2025 19:47:30] "[35m[1mGET /favicon.ico HTTP/1.1[0m" 500 -
+2025-06-05 19:47:47,672 - INFO - 127.0.0.1 - - [05/Jun/2025 19:47:47] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+2025-06-05 19:52:05,834 - INFO -  * Restarting with stat
+2025-06-05 19:52:06,146 - WARNING -  * Debugger is active!
+2025-06-05 19:52:06,149 - INFO -  * Debugger PIN: 142-746-891
+2025-06-05 19:52:27,454 - INFO -  * Restarting with stat
+2025-06-05 19:52:27,791 - WARNING -  * Debugger is active!
+2025-06-05 19:52:27,795 - INFO -  * Debugger PIN: 142-746-891
+2025-06-05 19:52:31,237 - INFO - 127.0.0.1 - - [05/Jun/2025 19:52:31] "GET / HTTP/1.1" 200 -
+2025-06-05 19:52:31,397 - INFO - 127.0.0.1 - - [05/Jun/2025 19:52:31] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+2025-06-05 19:52:31,480 - INFO - 127.0.0.1 - - [05/Jun/2025 19:52:31] "GET /static/js/script.js HTTP/1.1" 200 -
+2025-06-05 19:52:32,306 - INFO - 127.0.0.1 - - [05/Jun/2025 19:52:32] "GET /api/districts HTTP/1.1" 200 -
+2025-06-05 19:52:32,471 - INFO - 127.0.0.1 - - [05/Jun/2025 19:52:32] "GET /api/stores HTTP/1.1" 200 -
+2025-06-05 19:52:33,673 - INFO - 127.0.0.1 - - [05/Jun/2025 19:52:33] "[35m[1mGET /favicon.ico HTTP/1.1[0m" 500 -
+2025-06-05 19:52:43,851 - INFO - 127.0.0.1 - - [05/Jun/2025 19:52:43] "POST /api/login HTTP/1.1" 200 -
+2025-06-05 19:52:44,184 - INFO - 127.0.0.1 - - [05/Jun/2025 19:52:44] "GET /api/stores HTTP/1.1" 200 -
+2025-06-05 19:53:08,621 - INFO - 127.0.0.1 - - [05/Jun/2025 19:53:08] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+2025-06-05 19:53:08,637 - INFO - 127.0.0.1 - - [05/Jun/2025 19:53:08] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+2025-06-05 19:53:13,614 - INFO - 127.0.0.1 - - [05/Jun/2025 19:53:13] "GET / HTTP/1.1" 200 -
+2025-06-05 19:53:13,653 - INFO - 127.0.0.1 - - [05/Jun/2025 19:53:13] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+2025-06-05 19:53:13,879 - INFO - 127.0.0.1 - - [05/Jun/2025 19:53:13] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+2025-06-05 19:53:13,973 - INFO - 127.0.0.1 - - [05/Jun/2025 19:53:13] "[36mGET /static/js/script.js HTTP/1.1[0m" 304 -
+2025-06-05 19:53:14,506 - INFO - 127.0.0.1 - - [05/Jun/2025 19:53:14] "GET /api/districts HTTP/1.1" 200 -
+2025-06-05 19:53:14,674 - INFO - 127.0.0.1 - - [05/Jun/2025 19:53:14] "GET /api/stores HTTP/1.1" 200 -
+2025-06-05 19:53:14,695 - INFO - 127.0.0.1 - - [05/Jun/2025 19:53:14] "[35m[1mGET /favicon.ico HTTP/1.1[0m" 500 -
+2025-06-05 19:55:08,732 - INFO - 127.0.0.1 - - [05/Jun/2025 19:55:08] "GET / HTTP/1.1" 200 -
+2025-06-05 19:55:08,783 - INFO - 127.0.0.1 - - [05/Jun/2025 19:55:08] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+2025-06-05 19:55:08,973 - INFO - 127.0.0.1 - - [05/Jun/2025 19:55:08] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+2025-06-05 19:55:09,112 - INFO - 127.0.0.1 - - [05/Jun/2025 19:55:09] "[36mGET /static/js/script.js HTTP/1.1[0m" 304 -
+2025-06-05 19:55:09,533 - INFO - 127.0.0.1 - - [05/Jun/2025 19:55:09] "GET /static/favicon.ico HTTP/1.1" 200 -
+2025-06-05 19:55:09,580 - INFO - 127.0.0.1 - - [05/Jun/2025 19:55:09] "GET /api/districts HTTP/1.1" 200 -
+2025-06-05 19:55:09,696 - INFO - 127.0.0.1 - - [05/Jun/2025 19:55:09] "GET /api/stores HTTP/1.1" 200 -
