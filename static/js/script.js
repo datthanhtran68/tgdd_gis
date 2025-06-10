@@ -1,3 +1,5 @@
+const API_BASE_URL = window.location.origin;
+
 let chartInstance = null;
 let isLoading = false;
 let isEditMode = false;
@@ -535,7 +537,7 @@ function login(event) {
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
 
-    fetch('https://tgdd-gis.onrender.com/api/login', {
+    fetch(`${API_BASE_URL}/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
@@ -587,7 +589,7 @@ function changePassword(event) {
     const oldPassword = document.getElementById('oldPassword').value;
     const newPassword = document.getElementById('newPassword').value;
 
-    fetch('https://tgdd-gis.onrender.com/api/change-password', {
+    fetch(`${API_BASE_URL}/api/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, oldPassword, newPassword })
