@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify
-from database.db import get_db_connection
+from db import get_db_connection
 
 # Khởi tạo blueprint cho stats
 stats_bp = Blueprint('stats', __name__)
