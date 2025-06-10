@@ -1,18 +1,11 @@
-from flask import Blueprint, jsonify, request
+# routes/auth.py
+from flask import Blueprint, request, jsonify
 from db import get_db_connection
 
-# Khởi tạo blueprint cho auth
 auth_bp = Blueprint('auth', __name__)
 
-@auth_bp.route('/login', methods=['POST'])
+@auth_bp.route('/api/login', methods=['POST'])
 def login():
-    """
-    Xử lý đăng nhập người dùng.
-    Body:
-        JSON chứa username và password.
-    Returns:
-        JSON: Thông tin đăng nhập thành công (isAdmin) hoặc lỗi.
-    """
     data = request.get_json()
     username = data.get('username')
     password = data.get('password')
@@ -27,19 +20,12 @@ def login():
     cur.close()
     conn.close()
 
-    if user and user[1] == password:  # So sánh mật khẩu thô
+    if user and user[1] == password:
         return jsonify({"success": True, "isAdmin": user[2] == 'admin'})
     return jsonify({"success": False, "message": "Invalid username or password"}), 401
 
-@auth_bp.route('/change-password', methods=['POST'])
+@auth_bp.route('/api/change-password', methods=['POST'])
 def change_password():
-    """
-    Đổi mật khẩu người dùng.
-    Body:
-        JSON chứa username, oldPassword, newPassword.
-    Returns:
-        JSON: Thông báo đổi mật khẩu thành công hoặc lỗi.
-    """
     data = request.get_json()
     username = data.get('username')
     old_password = data.get('oldPassword')
