@@ -442,14 +442,28 @@ function sendStoreUpdateRequest(updatedStore) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedStore)
     })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
-            showAlert(data.message, 'success');
-            loadStores();
-            document.getElementById('storeForm').reset();
-            bootstrap.Modal.getInstance(document.getElementById('storeModal')).hide();
-            document.getElementById('storeModalLabel').textContent = 'Thêm chi nhánh mới';
-            document.getElementById('storeForm').onsubmit = createStore;
+            if (data.error) {
+                showAlert(data.error, 'danger');
+            } else {
+                showAlert(data.message, 'success');
+                loadStores();
+                document.getElementById('storeForm').reset();
+                bootstrap.Modal.getInstance(document.getElementById('storeModal')).hide();
+                document.getElementById('storeModalLabel').textContent = 'Thêm chi nhánh mới';
+                document.getElementById('storeForm').onsubmit = createStore;
+            }
+            document.getElementById('loadingSpinner').style.display = 'none';
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('Đã xảy ra lỗi khi cập nhật chi nhánh. Vui lòng thử lại.', 'danger');
             document.getElementById('loadingSpinner').style.display = 'none';
         });
 }
@@ -462,10 +476,24 @@ function deleteStore(name) {
     if (confirm(`Xóa chi nhánh ${name}?`)) {
         document.getElementById('loadingSpinner').style.display = 'block';
         fetch(`/api/stores?name=${encodeURIComponent(name)}`, { method: 'DELETE' })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
-                showAlert(data.message, 'success');
-                loadStores();
+                if (data.error) {
+                    showAlert(data.error, 'danger');
+                } else {
+                    showAlert(data.message, 'success');
+                    loadStores();
+                }
+                document.getElementById('loadingSpinner').style.display = 'none';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Đã xảy ra lỗi khi xóa chi nhánh. Vui lòng thử lại.', 'danger');
                 document.getElementById('loadingSpinner').style.display = 'none';
             });
     }
@@ -507,7 +535,7 @@ function login(event) {
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
 
-    fetch('https://tgdd-gis.onrender.com//api/login', {
+    fetch('http://localhost:5000/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
