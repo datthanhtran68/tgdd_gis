@@ -587,7 +587,7 @@ function changePassword(event) {
     const oldPassword = document.getElementById('oldPassword').value;
     const newPassword = document.getElementById('newPassword').value;
 
-    fetch('https://tgdd-gis.onrender.com//api/change-password', {
+    fetch('https://tgdd-gis.onrender.com/api/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, oldPassword, newPassword })
