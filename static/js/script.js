@@ -1,4 +1,4 @@
-const API_BASE_URL = window.location.origin;
+"use strict";
 
 let chartInstance = null;
 let isLoading = false;
@@ -11,6 +11,15 @@ let tempMarker = null;
 let districtsData = [];
 let isAdmin = false;
 let currentUsername = '';
+let isHeatmapOn = false;
+
+const API_BASE_URL = window.location.origin;
+
+function sanitizeHTML(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
 
 function showAlert(message, type = 'success') {
     const alertDiv = document.createElement('div');
@@ -20,7 +29,7 @@ function showAlert(message, type = 'success') {
     alertDiv.style.right = '20px';
     alertDiv.style.zIndex = '2000';
     alertDiv.innerHTML = `
-        ${message}
+        ${sanitizeHTML(message)}
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     `;
     document.body.appendChild(alertDiv);
@@ -56,31 +65,32 @@ function toggleMapAddMode() {
 }
 
 function toggleMenu() {
-    var sidebar = document.getElementById('sidebar');
+    const sidebar = document.getElementById('sidebar');
     sidebar.classList.toggle('open', !sidebar.classList.contains('open'));
 }
 
 function showSection(sectionId) {
-    document.querySelectorAll('.panel').forEach(panel => {
-        panel.classList.remove('open');
-    });
+    document.querySelectorAll('.panel').forEach(panel => panel.classList.remove('open'));
     document.getElementById(sectionId).classList.add('open');
 
     document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
     event.currentTarget.classList.add('active');
 
-    var sidebar = document.getElementById('sidebar');
+    const sidebar = document.getElementById('sidebar');
     if (!sidebar.classList.contains('open')) toggleMenu();
 
     if (sectionId === 'stats-section' && !chartInstance) {
-        fetch('/api/stats')
+        if (typeof Chart === 'undefined') {
+            showAlert('Không thể tải thư viện biểu đồ. Vui lòng kiểm tra kết nối.', 'danger');
+            return;
+        }
+        fetch(`${API_BASE_URL}/api/stats`)
             .then(response => {
-                if (!response.ok) throw new Error('Network response was not ok');
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
                 return response.json();
             })
             .then(data => {
-                console.log('Stats data:', data);
-                var ctx = document.getElementById('districtChart').getContext('2d');
+                const ctx = document.getElementById('districtChart').getContext('2d');
                 if (chartInstance) chartInstance.destroy();
                 chartInstance = new Chart(ctx, {
                     type: 'bar',
@@ -113,96 +123,112 @@ function showSection(sectionId) {
     }
 }
 
-var map = L.map('map').setView([21.0285, 105.8542], 12);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+if (typeof L === 'undefined') {
+    showAlert('Không thể tải thư viện bản đồ. Vui lòng kiểm tra kết nối.', 'danger');
+} else {
+    var map = L.map('map').setView([21.0285, 105.8542], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-var storeLayer = L.layerGroup().addTo(map);
-var districtLayer = L.geoJSON(null, {
-    style: { color: 'blue', weight: 2, fillOpacity: 0.2 },
-    onEachFeature: function (feature, layer) { layer.bindPopup(feature.properties.name); }
-}).addTo(map);
-var heatLayer = L.heatLayer([], { radius: 15, blur: 10, maxZoom: 12 }).addTo(map);
-var routingControl = null;
-var isHeatmapOn = false;
-var userLocation = null;
+    var storeLayer = L.layerGroup().addTo(map);
+    var districtLayer = L.geoJSON(null, {
+        style: { color: 'blue', weight: 2, fillOpacity: 0.2 },
+        onEachFeature: function (feature, layer) { layer.bindPopup(feature.properties.name); }
+    }).addTo(map);
+    var heatLayer = L.heatLayer([], { radius: 15, blur: 10, maxZoom: 12 }).addTo(map);
+    var routingControl = null;
+    var userLocation = null;
 
-var storeIcon = L.icon({ iconUrl: 'https://img.icons8.com/color/48/000000/shopping-cart.png', iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -32] });
-var tempIcon = L.icon({ iconUrl: 'https://img.icons8.com/color/48/000000/marker.png', iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -32] });
-var userIcon = L.divIcon({ className: 'user-location-marker', iconSize: [20, 20], iconAnchor: [10, 10], popupAnchor: [0, -10] });
+    var storeIcon = L.icon({ iconUrl: 'https://img.icons8.com/color/48/000000/shopping-cart.png', iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -32] });
+    var tempIcon = L.icon({ iconUrl: 'https://img.icons8.com/color/48/000000/marker.png', iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -32] });
+    var userIcon = L.divIcon({ className: 'user-location-marker', iconSize: [20, 20], iconAnchor: [10, 10], popupAnchor: [0, -10] });
 
-if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(position => {
-        userLocation = [position.coords.latitude, position.coords.longitude];
-        userMarker = L.marker(userLocation, { icon: userIcon }).addTo(map).bindPopup('Vị trí của bạn').openPopup();
-        map.setView(userLocation, 12);
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            position => {
+                userLocation = [position.coords.latitude, position.coords.longitude];
+                userMarker = L.marker(userLocation, { icon: userIcon }).addTo(map).bindPopup('Vị trí của bạn').openPopup();
+                map.setView(userLocation, 12);
+            },
+            error => {
+                console.error('Geolocation error:', error);
+                showAlert('Không thể lấy vị trí của bạn. Vui lòng kiểm tra quyền định vị.', 'warning');
+            }
+        );
+    }
+
+    map.on('click', function(e) {
+        if (isMapAddMode) {
+            if (tempMarker) map.removeLayer(tempMarker);
+            tempMarker = L.marker([e.latlng.lat, e.latlng.lng], { icon: tempIcon }).addTo(map);
+
+            document.getElementById('latitude').value = e.latlng.lat.toFixed(6);
+            document.getElementById('longitude').value = e.latlng.lng.toFixed(6);
+
+            const point = turf.point([e.latlng.lng, e.latlng.lat]);
+            let foundDistrict = null;
+            districtsData.forEach(district => {
+                if (district.geom.type === 'MultiPolygon') {
+                    district.geom.coordinates.forEach(polygonCoords => {
+                        const polygon = turf.polygon(polygonCoords);
+                        if (turf.booleanPointInPolygon(point, polygon)) foundDistrict = district.name;
+                    });
+                }
+            });
+            if (foundDistrict) {
+                document.getElementById('district').value = foundDistrict;
+                showAlert(`Đã tự động chọn quận: ${sanitizeHTML(foundDistrict)}`, 'info');
+            } else {
+                document.getElementById('district').value = '';
+                showAlert('Không tìm thấy quận cho vị trí này', 'warning');
+            }
+
+            document.getElementById('storeModalLabel').textContent = 'Thêm chi nhánh mới';
+            document.getElementById('name').value = '';
+            document.getElementById('address').value = '';
+            document.getElementById('phone').value = '';
+            document.getElementById('open_hours').value = '';
+            document.getElementById('image').value = '';
+            document.getElementById('storeForm').onsubmit = createStore;
+
+            const modal = new bootstrap.Modal(document.getElementById('storeModal'));
+            modal.show();
+            return;
+        }
+
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar.classList.contains('open')) toggleMenu();
+        const storeListSection = document.getElementById('store-list-section');
+        if (storeListSection.classList.contains('open')) storeListSection.classList.remove('open');
+        const statsSection = document.getElementById('stats-section');
+        if (statsSection.classList.contains('open')) statsSection.classList.remove('open');
     });
 }
 
-map.on('click', function(e) {
-    if (isMapAddMode) {
-        if (tempMarker) map.removeLayer(tempMarker);
-        tempMarker = L.marker([e.latlng.lat, e.latlng.lng], { icon: tempIcon }).addTo(map);
-
-        document.getElementById('latitude').value = e.latlng.lat.toFixed(6);
-        document.getElementById('longitude').value = e.latlng.lng.toFixed(6);
-
-        const point = turf.point([e.latlng.lng, e.latlng.lat]);
-        let foundDistrict = null;
-        districtsData.forEach(district => {
-            if (district.geom.type === 'MultiPolygon') {
-                district.geom.coordinates.forEach(polygonCoords => {
-                    const polygon = turf.polygon(polygonCoords);
-                    if (turf.booleanPointInPolygon(point, polygon)) foundDistrict = district.name;
-                });
-            }
-        });
-        if (foundDistrict) {
-            document.getElementById('district').value = foundDistrict;
-            showAlert(`Đã tự động chọn quận: ${foundDistrict}`, 'info');
-        } else {
-            document.getElementById('district').value = '';
-            showAlert('Không tìm thấy quận cho vị trí này', 'warning');
-        }
-
-        document.getElementById('storeModalLabel').textContent = 'Thêm chi nhánh mới';
-        document.getElementById('name').value = '';
-        document.getElementById('address').value = '';
-        document.getElementById('phone').value = '';
-        document.getElementById('open_hours').value = '';
-        document.getElementById('image').value = '';
-        document.getElementById('storeForm').onsubmit = createStore;
-
-        var modal = new bootstrap.Modal(document.getElementById('storeModal'));
-        modal.show();
-        return;
-    }
-
-    var sidebar = document.getElementById('sidebar');
-    if (sidebar.classList.contains('open')) toggleMenu();
-    var storeListSection = document.getElementById('store-list-section');
-    if (storeListSection.classList.contains('open')) storeListSection.classList.remove('open');
-    var statsSection = document.getElementById('stats-section');
-    if (statsSection.classList.contains('open')) statsSection.classList.remove('open');
-});
-
-fetch('/api/districts')
-    .then(response => response.json())
+fetch(`${API_BASE_URL}/api/districts`)
+    .then(response => {
+        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+        return response.json();
+    })
     .then(data => {
         districtsData = data;
         districtLayer.clearLayers();
         data.forEach(district => {
             L.geoJSON(district.geom, {
                 style: { color: 'blue', weight: 2, fillOpacity: 0.2 },
-                onEachFeature: function (feature, layer) { layer.bindPopup(district.name); }
+                onEachFeature: function (feature, layer) { layer.bindPopup(sanitizeHTML(district.name)); }
             }).addTo(districtLayer);
         });
-        var select = document.getElementById('districtSelect');
+        const select = document.getElementById('districtSelect');
         data.forEach(district => {
-            var option = document.createElement('option');
+            const option = document.createElement('option');
             option.value = district.name;
             option.text = district.name;
             select.appendChild(option);
         });
+    })
+    .catch(error => {
+        console.error('Error loading districts:', error);
+        showAlert('Không thể tải dữ liệu quận. Vui lòng kiểm tra kết nối.', 'danger');
     });
 
 function loadStores(query = '', district = '') {
@@ -212,26 +238,29 @@ function loadStores(query = '', district = '') {
     storeLayer.clearLayers();
     storeMarkers.clear();
     if (isHeatmapOn) heatLayer.setLatLngs([]);
-    var url = `/api/stores${query || district ? '?' : ''}${query ? `q=${encodeURIComponent(query)}` : ''}${district ? `${query ? '&' : ''}district=${encodeURIComponent(district)}` : ''}`;
+    const url = `${API_BASE_URL}/api/stores${query || district ? '?' : ''}${query ? `q=${encodeURIComponent(query)}` : ''}${district ? `${query ? '&' : ''}district=${encodeURIComponent(district)}` : ''}`;
     fetch(url)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+            return response.json();
+        })
         .then(data => {
             const uniqueStores = Array.from(new Map(data.map(store => [store.name, store])).values());
             uniqueStores.forEach(store => {
-                var marker = L.marker([store.latitude, store.longitude], { icon: storeIcon, draggable: isEditMode });
+                const marker = L.marker([store.latitude, store.longitude], { icon: storeIcon, draggable: isEditMode });
                 const safeStoreName = store.name.replace(/'/g, "\\'").replace(/"/g, '\\"');
                 const storeId = safeStoreName.replace(/\s+/g, '_');
-                var popupContent = `
-                    <div class="popup-header">${safeStoreName}</div>
+                const popupContent = `
+                    <div class="popup-header">${sanitizeHTML(safeStoreName)}</div>
                     <div class="popup-info">
-                        <p><strong>Địa chỉ:</strong> ${store.address}</p>
-                        <p><strong>Số điện thoại:</strong> ${store.phone}</p>
-                        <p><strong>Giờ mở cửa:</strong> ${store.open_hours}</p>
-                        <p><strong>Quận:</strong> ${store.district}</p>
+                        <p><strong>Địa chỉ:</strong> ${sanitizeHTML(store.address)}</p>
+                        <p><strong>Số điện thoại:</strong> ${sanitizeHTML(store.phone)}</p>
+                        <p><strong>Giờ mở cửa:</strong> ${sanitizeHTML(store.open_hours)}</p>
+                        <p><strong>Quận:</strong> ${sanitizeHTML(store.district)}</p>
                         <p><strong>Tọa độ:</strong> <span id="coords_${storeId}">${store.latitude}, ${store.longitude}</span></p>
                     </div>
                     <div class="popup-image">
-                        ${store.image ? `<img src="${store.image}" alt="Store Image" />` : '<p>Chưa có ảnh</p>'}
+                        ${store.image ? `<img src="${sanitizeHTML(store.image)}" alt="Store Image" />` : '<p>Chưa có ảnh</p>'}
                     </div>
                     <div class="popup-actions">
                         <button class="btn btn-success" onclick="routeToStore(${store.latitude}, ${store.longitude})">Chỉ đường</button>
@@ -242,28 +271,33 @@ function loadStores(query = '', district = '') {
                 storeMarkers.set(store.name, { marker: marker, originalLat: store.latitude, originalLng: store.longitude });
 
                 marker.on('dragend', function(e) {
-                    var newLatLng = marker.getLatLng();
-                    var storeName = store.name;
-                    var coordsElement = document.getElementById(`coords_${storeId}`);
+                    const newLatLng = marker.getLatLng();
+                    const coordsElement = document.getElementById(`coords_${storeId}`);
                     if (coordsElement) coordsElement.textContent = `${newLatLng.lat.toFixed(6)}, ${newLatLng.lng.toFixed(6)}`;
                     marker.getPopup().setContent(marker.getPopup().getContent().replace(new RegExp(`${store.latitude}, ${store.longitude}`), `${newLatLng.lat.toFixed(6)}, ${newLatLng.lng.toFixed(6)}`));
                 });
             });
             if (isHeatmapOn && uniqueStores.length > 0) {
-                var heatPoints = uniqueStores.map(store => [store.latitude, store.longitude, 1]);
+                const heatPoints = uniqueStores.map(store => [store.latitude, store.longitude, 1]);
                 heatLayer.setLatLngs(heatPoints);
             }
             updateStoreList(uniqueStores);
+            document.getElementById('loadingSpinner').style.display = 'none';
+            isLoading = false;
+        })
+        .catch(error => {
+            console.error('Error loading stores:', error);
+            showAlert('Không thể tải danh sách cửa hàng. Vui lòng thử lại.', 'danger');
             document.getElementById('loadingSpinner').style.display = 'none';
             isLoading = false;
         });
 }
 
 function updateStoreList(stores) {
-    var tbody = document.querySelector('#storeTable tbody');
+    const tbody = document.querySelector('#storeTable tbody');
     tbody.innerHTML = '';
     stores.forEach((store, index) => {
-        var row = document.createElement('tr');
+        const row = document.createElement('tr');
         const safeStoreName = store.name.replace(/'/g, "\\'").replace(/"/g, '\\"');
         const actions = isAdmin
             ? `<button class="btn btn-sm btn-warning me-1" onclick='editStore(${JSON.stringify(store).replace(/'/g, "\\'")})'>Sửa</button>
@@ -271,9 +305,9 @@ function updateStoreList(stores) {
             : '';
         row.innerHTML = `
             <td>${index + 1}</td>
-            <td>${store.name}</td>
-            <td>${store.address}</td>
-            <td>${store.district}</td>
+            <td>${sanitizeHTML(store.name)}</td>
+            <td>${sanitizeHTML(store.address)}</td>
+            <td>${sanitizeHTML(store.district)}</td>
             <td>${actions}</td>
         `;
         tbody.appendChild(row);
@@ -287,7 +321,7 @@ function toggleEditMode() {
     }
     isEditMode = !isEditMode;
     storeMarkers.forEach((value, key) => {
-        var marker = value.marker;
+        const marker = value.marker;
         marker.dragging[isEditMode ? 'enable' : 'disable']();
     });
     document.getElementById('edit-mode-text').textContent = isEditMode ? 'Tắt chỉnh sửa vị trí' : 'Chỉnh sửa vị trí';
@@ -300,12 +334,12 @@ function saveNewLocation(storeName, originalLat, originalLng) {
         showAlert('Vui lòng đăng nhập với quyền admin để sử dụng chức năng này!', 'warning');
         return;
     }
-    var markerData = storeMarkers.get(storeName);
+    const markerData = storeMarkers.get(storeName);
     if (!markerData) return;
 
-    var marker = markerData.marker;
-    var newLatLng = marker.getLatLng();
-    var updatedStore = {
+    const marker = markerData.marker;
+    const newLatLng = marker.getLatLng();
+    const updatedStore = {
         name: storeName,
         latitude: newLatLng.lat,
         longitude: newLatLng.lng,
@@ -314,15 +348,26 @@ function saveNewLocation(storeName, originalLat, originalLng) {
         originalLng: originalLng
     };
 
-    fetch('/api/stores', {
+    fetch(`${API_BASE_URL}/api/stores`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedStore)
     })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+            return response.json();
+        })
         .then(data => {
-            showAlert(data.message, 'success');
-            loadStores();
+            if (data.error) {
+                showAlert(data.error, 'danger');
+            } else {
+                showAlert(data.message, 'success');
+                loadStores();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('Đã xảy ra lỗi khi lưu vị trí. Vui lòng thử lại.', 'danger');
         });
 }
 
@@ -335,23 +380,29 @@ function clearRoute() {
     }
 }
 
+function debounce(func, wait) {
+    let timeout;
+    return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}
+
 function searchStores() {
-    var query = document.getElementById('searchInput').value;
-    var district = document.getElementById('districtSelect').value;
+    const query = document.getElementById('searchInput').value;
+    const district = document.getElementById('districtSelect').value;
     loadStores(query, district);
 }
 
+document.getElementById('searchInput').addEventListener('input', debounce(searchStores, 300));
+
 function createStore(event) {
+    event.preventDefault();
     if (!isAdmin) {
         showAlert('Vui lòng đăng nhập với quyền admin để sử dụng chức năng này!', 'warning');
-        event.preventDefault();
         return;
     }
-    event.preventDefault();
-    document.getElementById('loadingSpinner').style.display = 'block';
-    var fileInput = document.getElementById('image');
-    var file = fileInput.files[0];
-    var store = {
+    const store = {
         name: document.getElementById('name').value,
         address: document.getElementById('address').value,
         phone: document.getElementById('phone').value,
@@ -360,9 +411,15 @@ function createStore(event) {
         latitude: parseFloat(document.getElementById('latitude').value),
         longitude: parseFloat(document.getElementById('longitude').value)
     };
-
+    if (!store.name || isNaN(store.latitude) || isNaN(store.longitude)) {
+        showAlert('Vui lòng điền đầy đủ thông tin bắt buộc.', 'warning');
+        return;
+    }
+    document.getElementById('loadingSpinner').style.display = 'block';
+    const fileInput = document.getElementById('image');
+    const file = fileInput.files[0];
     if (file) {
-        var reader = new FileReader();
+        const reader = new FileReader();
         reader.onload = function(e) {
             store.image = e.target.result;
             sendStoreCreateRequest(store);
@@ -374,22 +431,35 @@ function createStore(event) {
 }
 
 function sendStoreCreateRequest(store) {
-    fetch('/api/stores', {
+    fetch(`${API_BASE_URL}/api/stores`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(store)
     })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+            return response.json();
+        })
         .then(data => {
-            showAlert(data.message, 'success');
-            loadStores();
-            document.getElementById('storeForm').reset();
-            bootstrap.Modal.getInstance(document.getElementById('storeModal')).hide();
-            document.getElementById('loadingSpinner').style.display = 'none';
-            if (tempMarker) {
-                map.removeLayer(tempMarker);
-                tempMarker = null;
+            if (data.error) {
+                showAlert(data.error, 'danger');
+            } else {
+                showAlert(data.message, 'success');
+                loadStores();
+                document.getElementById('storeForm').reset();
+                bootstrap.Modal.getInstance(document.getElementById('storeModal')).hide();
+                if (tempMarker) {
+                    map.removeLayer(tempMarker);
+                    tempMarker = null;
+                }
             }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('Đã xảy ra lỗi khi thêm chi nhánh. Vui lòng thử lại.', 'danger');
+        })
+        .finally(() => {
+            document.getElementById('loadingSpinner').style.display = 'none';
         });
 }
 
@@ -406,14 +476,14 @@ function editStore(store) {
     document.getElementById('district').value = store.district;
     document.getElementById('latitude').value = store.latitude;
     document.getElementById('longitude').value = store.longitude;
-    var modal = new bootstrap.Modal(document.getElementById('storeModal'));
+    const modal = new bootstrap.Modal(document.getElementById('storeModal'));
     modal.show();
     document.getElementById('storeForm').onsubmit = function(event) {
         event.preventDefault();
         document.getElementById('loadingSpinner').style.display = 'block';
-        var fileInput = document.getElementById('image');
-        var file = fileInput.files[0];
-        var updatedStore = {
+        const fileInput = document.getElementById('image');
+        const file = fileInput.files[0];
+        const updatedStore = {
             name: document.getElementById('name').value,
             address: document.getElementById('address').value,
             phone: document.getElementById('phone').value,
@@ -423,9 +493,13 @@ function editStore(store) {
             longitude: parseFloat(document.getElementById('longitude').value),
             original_name: store.name
         };
-
+        if (!updatedStore.name || isNaN(updatedStore.latitude) || isNaN(updatedStore.longitude)) {
+            showAlert('Vui lòng điền đầy đủ thông tin bắt buộc.', 'warning');
+            document.getElementById('loadingSpinner').style.display = 'none';
+            return;
+        }
         if (file) {
-            var reader = new FileReader();
+            const reader = new FileReader();
             reader.onload = function(e) {
                 updatedStore.image = e.target.result;
                 sendStoreUpdateRequest(updatedStore);
@@ -439,15 +513,13 @@ function editStore(store) {
 }
 
 function sendStoreUpdateRequest(updatedStore) {
-    fetch('/api/stores', {
+    fetch(`${API_BASE_URL}/api/stores`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedStore)
     })
         .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
             return response.json();
         })
         .then(data => {
@@ -461,11 +533,12 @@ function sendStoreUpdateRequest(updatedStore) {
                 document.getElementById('storeModalLabel').textContent = 'Thêm chi nhánh mới';
                 document.getElementById('storeForm').onsubmit = createStore;
             }
-            document.getElementById('loadingSpinner').style.display = 'none';
         })
         .catch(error => {
             console.error('Error:', error);
             showAlert('Đã xảy ra lỗi khi cập nhật chi nhánh. Vui lòng thử lại.', 'danger');
+        })
+        .finally(() => {
             document.getElementById('loadingSpinner').style.display = 'none';
         });
 }
@@ -477,11 +550,11 @@ function deleteStore(name) {
     }
     if (confirm(`Xóa chi nhánh ${name}?`)) {
         document.getElementById('loadingSpinner').style.display = 'block';
-        fetch(`/api/stores?name=${encodeURIComponent(name)}`, { method: 'DELETE' })
+        fetch(`${API_BASE_URL}/api/stores?name=${encodeURIComponent(name)}`, {
+            method: 'DELETE'
+        })
             .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
                 return response.json();
             })
             .then(data => {
@@ -491,11 +564,12 @@ function deleteStore(name) {
                     showAlert(data.message, 'success');
                     loadStores();
                 }
-                document.getElementById('loadingSpinner').style.display = 'none';
             })
             .catch(error => {
                 console.error('Error:', error);
                 showAlert('Đã xảy ra lỗi khi xóa chi nhánh. Vui lòng thử lại.', 'danger');
+            })
+            .finally(() => {
                 document.getElementById('loadingSpinner').style.display = 'none';
             });
     }
@@ -513,13 +587,16 @@ function routeToStore(lat, lng) {
         router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1', profile: 'driving-car' }),
         lineOptions: { styles: [{ color: 'blue', weight: 4 }] },
         createMarker: function(i, waypoint, n) { return i === 0 ? userMarker : L.marker(waypoint.latLng, { icon: storeIcon }); },
-        addWaypoints: false, draggableWaypoints: false, fitSelectedRoutes: true, showAlternatives: false
+        addWaypoints: false,
+        draggableWaypoints: false,
+        fitSelectedRoutes: true,
+        showAlternatives: false
     }).addTo(map);
     routingControl.on('routesfound', function(e) {
-        var routes = e.routes;
-        var summary = e.routes[0].summary;
-        var distance = (summary.totalDistance / 1000).toFixed(2);
-        var time = Math.round(summary.totalTime / 60);
+        const routes = e.routes;
+        const summary = e.routes[0].summary;
+        const distance = (summary.totalDistance / 1000).toFixed(2);
+        const time = Math.round(summary.totalTime / 60);
         showAlert(`Lộ trình: Khoảng cách: ${distance} km, Thời gian: ${time} phút`, 'info');
         document.getElementById('loadingSpinner').style.display = 'none';
         document.getElementById('clearRouteBtn').style.display = 'block';
@@ -527,7 +604,7 @@ function routeToStore(lat, lng) {
 }
 
 function showLoginModal() {
-    var modal = new bootstrap.Modal(document.getElementById('loginModal'));
+    const modal = new bootstrap.Modal(document.getElementById('loginModal'));
     modal.show();
 }
 
@@ -537,12 +614,15 @@ function login(event) {
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
 
-    fetch(`${API_BASE_URL}/api/login', {
+    fetch(`${API_BASE_URL}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
     })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+            return response.json();
+        })
         .then(data => {
             if (data.success && data.isAdmin) {
                 isAdmin = true;
@@ -561,7 +641,13 @@ function login(event) {
             document.getElementById('loginForm').reset();
             bootstrap.Modal.getInstance(document.getElementById('loginModal')).hide();
         })
-        .finally(() => document.getElementById('loadingSpinner').style.display = 'none');
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('Đã xảy ra lỗi khi đăng nhập. Vui lòng thử lại.', 'danger');
+        })
+        .finally(() => {
+            document.getElementById('loadingSpinner').style.display = 'none';
+        });
 }
 
 function logout() {
@@ -578,7 +664,7 @@ function logout() {
 }
 
 function showChangePasswordModal() {
-    var modal = new bootstrap.Modal(document.getElementById('changePasswordModal'));
+    const modal = new bootstrap.Modal(document.getElementById('changePasswordModal'));
     modal.show();
 }
 
@@ -589,12 +675,15 @@ function changePassword(event) {
     const oldPassword = document.getElementById('oldPassword').value;
     const newPassword = document.getElementById('newPassword').value;
 
-    fetch(`${API_BASE_URL}/api/change-password', {
+    fetch(`${API_BASE_URL}/api/change-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, oldPassword, newPassword })
     })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 showAlert('Đổi mật khẩu thành công!', 'success');
@@ -604,7 +693,13 @@ function changePassword(event) {
                 showAlert(data.message, 'danger');
             }
         })
-        .finally(() => document.getElementById('loadingSpinner').style.display = 'none');
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('Đã xảy ra lỗi khi đổi mật khẩu. Vui lòng thử lại.', 'danger');
+        })
+        .finally(() => {
+            document.getElementById('loadingSpinner').style.display = 'none';
+        });
 }
 
 document.getElementById('loginForm').onsubmit = login;
