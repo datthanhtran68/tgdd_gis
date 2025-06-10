@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from database.db import get_db_connection
+from db import get_db_connection
 
 # Khởi tạo blueprint cho auth
 auth_bp = Blueprint('auth', __name__)
