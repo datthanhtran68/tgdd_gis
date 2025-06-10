@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify
-from database.db import get_db_connection
+from db import get_db_connection
 import json
 
 # Khởi tạo blueprint cho districts
