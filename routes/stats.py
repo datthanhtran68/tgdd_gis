@@ -4,7 +4,7 @@ from db import get_db_connection
 
 stats_bp = Blueprint('stats', __name__)
 
-@stats_bp.route('/api/stats')
+@stats_bp.route('/stats')
 def get_stats():
     conn = get_db_connection()
     cur = conn.cursor()
