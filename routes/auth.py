@@ -4,7 +4,7 @@ from db import get_db_connection
 
 auth_bp = Blueprint('auth', __name__)
 
-@auth_bp.route('/api/login', methods=['POST'])
+@auth_bp.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
     username = data.get('username')
@@ -24,7 +24,7 @@ def login():
         return jsonify({"success": True, "isAdmin": user[2] == 'admin'})
     return jsonify({"success": False, "message": "Invalid username or password"}), 401
 
-@auth_bp.route('/api/change-password', methods=['POST'])
+@auth_bp.route('/change-password', methods=['POST'])
 def change_password():
     data = request.get_json()
     username = data.get('username')
