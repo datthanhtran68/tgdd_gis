@@ -4,7 +4,7 @@ from db import get_db_connection
 
 stores_bp = Blueprint('stores', __name__)
 
-@stores_bp.route('/api/stores', methods=['GET'])
+@stores_bp.route('/stores', methods=['GET']) 
 def get_stores():
     search_query = request.args.get('q', '')
     district = request.args.get('district', '')
@@ -34,7 +34,7 @@ def get_stores():
     conn.close()
     return jsonify(stores)
 
-@stores_bp.route('/api/stores', methods=['POST'])
+@stores_bp.route('/stores', methods=['POST']) 
 def create_store():
     data = request.get_json()
     if not all(k in data for k in ['name', 'address', 'phone', 'open_hours', 'district', 'latitude', 'longitude']):
@@ -53,7 +53,7 @@ def create_store():
     conn.close()
     return jsonify({"id": store_id, "message": "Store created"}), 201
 
-@stores_bp.route('/api/stores', methods=['PUT'])
+@stores_bp.route('/stores', methods=['PUT']) 
 def update_store():
     data = request.get_json()
     if not all(k in data for k in ['name', 'latitude', 'longitude', 'original_name']):
@@ -82,7 +82,7 @@ def update_store():
     conn.close()
     return jsonify({"message": "Store updated"}), 200 if result else (jsonify({"error": "Not found"}), 404)
 
-@stores_bp.route('/api/stores', methods=['DELETE'])
+@stores_bp.route('/stores', methods=['DELETE'])
 def delete_store():
     name = request.args.get('name')
     if not name:
