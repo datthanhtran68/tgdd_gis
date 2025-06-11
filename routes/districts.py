@@ -5,7 +5,7 @@ from db import get_db_connection
 
 districts_bp = Blueprint('districts', __name__)
 
-@districts_bp.route('/api/districts')
+@districts_bp.route('/districts')
 def get_districts():
     conn = get_db_connection()
     cur = conn.cursor()
