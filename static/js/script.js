@@ -1,5 +1,6 @@
 "use strict";
 
+// State variables
 let chartInstance = null;
 let isLoading = false;
 let isEditMode = false;
@@ -8,13 +9,15 @@ let isMapAddMode = false;
 let storeMarkers = new Map();
 let userMarker = null;
 let tempMarker = null;
-let districtsData = [];
+let districtsData = null; // Cache for districts
+let statsData = null; // Cache for stats
 let isAdmin = false;
 let currentUsername = '';
 let isHeatmapOn = false;
 
 const API_BASE_URL = window.location.origin;
 
+// Utility functions
 function sanitizeHTML(str) {
     const div = document.createElement('div');
     div.textContent = str;
@@ -36,6 +39,31 @@ function showAlert(message, type = 'success') {
     setTimeout(() => alertDiv.remove(), 3000);
 }
 
+async function fetchWithRetry(url, options, retries = 3, delay = 1000) {
+    for (let i = 0; i < retries; i++) {
+        try {
+            const response = await fetch(url, options);
+            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+            return await response.json();
+        } catch (error) {
+            if (i < retries - 1) {
+                await new Promise(resolve => setTimeout(resolve, delay));
+                continue;
+            }
+            throw error;
+        }
+    }
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}
+
+// Map-related functions
 function toggleHeatmap() {
     isHeatmapOn = !isHeatmapOn;
     if (!isHeatmapOn) heatLayer.setLatLngs([]);
@@ -84,45 +112,50 @@ function showSection(sectionId) {
             showAlert('Không thể tải thư viện biểu đồ. Vui lòng kiểm tra kết nối.', 'danger');
             return;
         }
-        fetch(`${API_BASE_URL}/api/stats`)
-            .then(response => {
-                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-                return response.json();
-            })
-            .then(data => {
-                const ctx = document.getElementById('districtChart').getContext('2d');
-                if (chartInstance) chartInstance.destroy();
-                chartInstance = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: Object.keys(data),
-                        datasets: [{
-                            label: 'Số chi nhánh',
-                            data: Object.values(data),
-                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                            borderColor: 'rgba(54, 162, 235, 1)',
-                            borderWidth: 1
-                        }]
+        const renderChart = () => {
+            const ctx = document.getElementById('districtChart').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(statsData),
+                    datasets: [{
+                        label: 'Số chi nhánh',
+                        data: Object.values(statsData),
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: { beginAtZero: true, ticks: { font: { size: 16 } } },
+                        x: { ticks: { font: { size: 14 } } }
                     },
-                    options: {
-                        scales: {
-                            y: { beginAtZero: true, ticks: { font: { size: 16 } } },
-                            x: { ticks: { font: { size: 14 } } }
-                        },
-                        plugins: {
-                            legend: { labels: { font: { size: 16 } } }
-                        },
-                        maintainAspectRatio: false
-                    }
-                });
-            })
-            .catch(error => {
-                console.error('Error loading stats:', error);
-                showAlert('Không thể tải thống kê. Vui lòng kiểm tra kết nối hoặc dữ liệu.', 'danger');
+                    plugins: {
+                        legend: { labels: { font: { size: 16 } } }
+                    },
+                    maintainAspectRatio: false
+                }
             });
+        };
+        if (statsData) {
+            renderChart();
+        } else {
+            fetchWithRetry(`${API_BASE_URL}/api/stats`, {})
+                .then(data => {
+                    statsData = data;
+                    renderChart();
+                })
+                .catch(error => {
+                    console.error('Error loading stats:', error);
+                    showAlert('Không thể tải thống kê. Vui lòng kiểm tra kết nối hoặc dữ liệu.', 'danger');
+                });
+        }
     }
 }
 
+// Initialize map
 if (typeof L === 'undefined') {
     showAlert('Không thể tải thư viện bản đồ. Vui lòng kiểm tra kết nối.', 'danger');
 } else {
@@ -166,7 +199,7 @@ if (typeof L === 'undefined') {
 
             const point = turf.point([e.latlng.lng, e.latlng.lat]);
             let foundDistrict = null;
-            districtsData.forEach(district => {
+            districtsData?.forEach(district => {
                 if (district.geom.type === 'MultiPolygon') {
                     district.geom.coordinates.forEach(polygonCoords => {
                         const polygon = turf.polygon(polygonCoords);
@@ -204,114 +237,127 @@ if (typeof L === 'undefined') {
     });
 }
 
-fetch(`${API_BASE_URL}/api/districts`)
-    .then(response => {
-        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-        return response.json();
-    })
-    .then(data => {
-        districtsData = data;
+// Load districts with caching
+async function loadDistricts() {
+    if (districtsData) return districtsData;
+    try {
+        districtsData = await fetchWithRetry(`${API_BASE_URL}/api/districts`, {});
         districtLayer.clearLayers();
-        data.forEach(district => {
+        districtsData.forEach(district => {
             L.geoJSON(district.geom, {
                 style: { color: 'blue', weight: 2, fillOpacity: 0.2 },
                 onEachFeature: function (feature, layer) { layer.bindPopup(sanitizeHTML(district.name)); }
             }).addTo(districtLayer);
         });
         const select = document.getElementById('districtSelect');
-        data.forEach(district => {
+        districtsData.forEach(district => {
             const option = document.createElement('option');
             option.value = district.name;
             option.text = district.name;
             select.appendChild(option);
         });
-    })
-    .catch(error => {
+        return districtsData;
+    } catch (error) {
         console.error('Error loading districts:', error);
         showAlert('Không thể tải dữ liệu quận. Vui lòng kiểm tra kết nối.', 'danger');
-    });
-
-function loadStores(query = '', district = '') {
-    if (isLoading) return;
-    isLoading = true;
-    document.getElementById('loadingSpinner').style.display = 'block';
-    storeLayer.clearLayers();
-    storeMarkers.clear();
-    if (isHeatmapOn) heatLayer.setLatLngs([]);
-    const url = `${API_BASE_URL}/api/stores${query || district ? '?' : ''}${query ? `q=${encodeURIComponent(query)}` : ''}${district ? `${query ? '&' : ''}district=${encodeURIComponent(district)}` : ''}`;
-    fetch(url)
-        .then(response => {
-            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-            return response.json();
-        })
-        .then(data => {
-            const uniqueStores = Array.from(new Map(data.map(store => [store.name, store])).values());
-            uniqueStores.forEach(store => {
-                const marker = L.marker([store.latitude, store.longitude], { icon: storeIcon, draggable: isEditMode });
-                const safeStoreName = store.name.replace(/'/g, "\\'").replace(/"/g, '\\"');
-                const storeId = safeStoreName.replace(/\s+/g, '_');
-                const popupContent = `
-                    <div class="popup-header">${sanitizeHTML(safeStoreName)}</div>
-                    <div class="popup-info">
-                        <p><strong>Địa chỉ:</strong> ${sanitizeHTML(store.address)}</p>
-                        <p><strong>Số điện thoại:</strong> ${sanitizeHTML(store.phone)}</p>
-                        <p><strong>Giờ mở cửa:</strong> ${sanitizeHTML(store.open_hours)}</p>
-                        <p><strong>Quận:</strong> ${sanitizeHTML(store.district)}</p>
-                        <p><strong>Tọa độ:</strong> <span id="coords_${storeId}">${store.latitude}, ${store.longitude}</span></p>
-                    </div>
-                    <div class="popup-image">
-                        ${store.image ? `<img src="${sanitizeHTML(store.image)}" alt="Store Image" />` : '<p>Chưa có ảnh</p>'}
-                    </div>
-                    <div class="popup-actions">
-                        <button class="btn btn-success" onclick="routeToStore(${store.latitude}, ${store.longitude})">Chỉ đường</button>
-                        ${isAdmin && isEditMode ? `<button class="btn btn-primary mt-2" onclick="saveNewLocation('${safeStoreName}', ${store.latitude}, ${store.longitude})">Lưu vị trí</button>` : ''}
-                    </div>
-                `;
-                marker.bindPopup(popupContent).addTo(storeLayer);
-                storeMarkers.set(store.name, { marker: marker, originalLat: store.latitude, originalLng: store.longitude });
-
-                marker.on('dragend', function(e) {
-                    const newLatLng = marker.getLatLng();
-                    const coordsElement = document.getElementById(`coords_${storeId}`);
-                    if (coordsElement) coordsElement.textContent = `${newLatLng.lat.toFixed(6)}, ${newLatLng.lng.toFixed(6)}`;
-                    marker.getPopup().setContent(marker.getPopup().getContent().replace(new RegExp(`${store.latitude}, ${store.longitude}`), `${newLatLng.lat.toFixed(6)}, ${newLatLng.lng.toFixed(6)}`));
-                });
-            });
-            if (isHeatmapOn && uniqueStores.length > 0) {
-                const heatPoints = uniqueStores.map(store => [store.latitude, store.longitude, 1]);
-                heatLayer.setLatLngs(heatPoints);
-            }
-            updateStoreList(uniqueStores);
-            document.getElementById('loadingSpinner').style.display = 'none';
-            isLoading = false;
-        })
-        .catch(error => {
-            console.error('Error loading stores:', error);
-            showAlert('Không thể tải danh sách cửa hàng. Vui lòng thử lại.', 'danger');
-            document.getElementById('loadingSpinner').style.display = 'none';
-            isLoading = false;
-        });
+        return [];
+    }
 }
 
+// Update markers incrementally
+function updateMarkers(newStores) {
+    const existingStores = new Map(storeMarkers);
+    storeLayer.clearLayers();
+    storeMarkers.clear();
+    newStores.forEach(store => {
+        let marker;
+        if (existingStores.has(store.name)) {
+            marker = existingStores.get(store.name).marker;
+            marker.setLatLng([store.latitude, store.longitude]);
+            existingStores.delete(store.name);
+        } else {
+            marker = L.marker([store.latitude, store.longitude], { icon: storeIcon, draggable: isEditMode });
+            const safeStoreName = store.name.replace(/'/g, "\\'").replace(/"/g, '\\"');
+            const storeId = safeStoreName.replace(/\s+/g, '_');
+            const popupContent = `
+                <div class="popup-header">${sanitizeHTML(safeStoreName)}</div>
+                <div class="popup-info">
+                    <p><strong>Địa chỉ:</strong> ${sanitizeHTML(store.address)}</p>
+                    <p><strong>Số điện thoại:</strong> ${sanitizeHTML(store.phone)}</p>
+                    <p><strong>Giờ mở cửa:</strong> ${sanitizeHTML(store.open_hours)}</p>
+                    <p><strong>Quận:</strong> ${sanitizeHTML(store.district)}</p>
+                    <p><strong>Tọa độ:</strong> <span id="coords_${storeId}">${store.latitude}, ${store.longitude}</span></p>
+                </div>
+                <div class="popup-image">
+                    ${store.image ? `<img src="${sanitizeHTML(store.image)}" alt="Store Image" />` : '<p>Chưa có ảnh</p>'}
+                </div>
+                <div class="popup-actions">
+                    <button class="btn btn-success" onclick="routeToStore(${store.latitude}, ${store.longitude})">Chỉ đường</button>
+                    ${isAdmin && isEditMode ? `<button class="btn btn-primary mt-2" onclick="saveNewLocation('${safeStoreName}', ${store.latitude}, ${store.longitude})">Lưu vị trí</button>` : ''}
+                </div>
+            `;
+            marker.bindPopup(popupContent);
+            marker.on('dragend', function(e) {
+                const newLatLng = marker.getLatLng();
+                const coordsElement = document.getElementById(`coords_${storeId}`);
+                if (coordsElement) coordsElement.textContent = `${newLatLng.lat.toFixed(6)}, ${newLatLng.lng.toFixed(6)}`;
+                marker.getPopup().setContent(marker.getPopup().getContent().replace(new RegExp(`${store.latitude}, ${store.longitude}`), `${newLatLng.lat.toFixed(6)}, ${newLatLng.lng.toFixed(6)}`));
+            });
+        }
+        storeMarkers.set(store.name, { marker, originalLat: store.latitude, originalLng: store.longitude });
+        storeLayer.addLayer(marker);
+    });
+    existingStores.forEach(value => storeLayer.removeLayer(value.marker));
+}
+
+// Update store list incrementally
 function updateStoreList(stores) {
     const tbody = document.querySelector('#storeTable tbody');
-    tbody.innerHTML = '';
+    const existingRows = new Map(Array.from(tbody.children).map(row => [row.cells[1].textContent, row]));
     stores.forEach((store, index) => {
-        const row = document.createElement('tr');
         const safeStoreName = store.name.replace(/'/g, "\\'").replace(/"/g, '\\"');
-        const actions = isAdmin
-            ? `<button class="btn btn-sm btn-warning me-1" onclick='editStore(${JSON.stringify(store).replace(/'/g, "\\'")})'>Sửa</button>
-               <button class="btn btn-sm btn-danger" onclick='deleteStore("${safeStoreName}")'>Xóa</button>`
-            : '';
-        row.innerHTML = `
+        const rowHtml = `
             <td>${index + 1}</td>
             <td>${sanitizeHTML(store.name)}</td>
             <td>${sanitizeHTML(store.address)}</td>
             <td>${sanitizeHTML(store.district)}</td>
-            <td>${actions}</td>
+            <td>${isAdmin ? `<button class="btn btn-sm btn-warning me-1" onclick='editStore(${JSON.stringify(store).replace(/'/g, "\\'")})'>Sửa</button>
+                             <button class="btn btn-sm btn-danger" onclick='deleteStore("${safeStoreName}")'>Xóa</button>` : ''}</td>
         `;
-        tbody.appendChild(row);
+        if (existingRows.has(store.name)) {
+            existingRows.get(store.name).innerHTML = rowHtml;
+            existingRows.delete(store.name);
+        } else {
+            const row = document.createElement('tr');
+            row.innerHTML = rowHtml;
+            tbody.appendChild(row);
+        }
     });
+    existingRows.forEach((row) => tbody.removeChild(row));
+}
+
+// Load stores with pagination
+async function loadStores(query = '', district = '', page = 1, limit = 50) {
+    if (isLoading) return;
+    isLoading = true;
+    document.getElementById('loadingSpinner').style.display = 'block';
+    try {
+        const url = `${API_BASE_URL}/api/stores?page=${page}&limit=${limit}${query ? `&q=${encodeURIComponent(query)}` : ''}${district ? `&district=${encodeURIComponent(district)}` : ''}`;
+        const data = await fetchWithRetry(url, {});
+        const uniqueStores = Array.from(new Map(data.map(store => [store.name, store])).values());
+        updateMarkers(uniqueStores);
+        if (isHeatmapOn && uniqueStores.length > 0) {
+            const heatPoints = uniqueStores.map(store => [store.latitude, store.longitude, 1]);
+            heatLayer.setLatLngs(heatPoints);
+        }
+        updateStoreList(uniqueStores);
+    } catch (error) {
+        console.error('Error loading stores:', error);
+        showAlert('Không thể tải danh sách cửa hàng. Vui lòng thử lại.', 'danger');
+    } finally {
+        document.getElementById('loadingSpinner').style.display = 'none';
+        isLoading = false;
+    }
 }
 
 function toggleEditMode() {
@@ -329,7 +375,7 @@ function toggleEditMode() {
     loadStores();
 }
 
-function saveNewLocation(storeName, originalLat, originalLng) {
+async function saveNewLocation(storeName, originalLat, originalLng) {
     if (!isAdmin) {
         showAlert('Vui lòng đăng nhập với quyền admin để sử dụng chức năng này!', 'warning');
         return;
@@ -348,27 +394,22 @@ function saveNewLocation(storeName, originalLat, originalLng) {
         originalLng: originalLng
     };
 
-    fetch(`${API_BASE_URL}/api/stores`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedStore)
-    })
-        .then(response => {
-            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-            return response.json();
-        })
-        .then(data => {
-            if (data.error) {
-                showAlert(data.error, 'danger');
-            } else {
-                showAlert(data.message, 'success');
-                loadStores();
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showAlert('Đã xảy ra lỗi khi lưu vị trí. Vui lòng thử lại.', 'danger');
+    try {
+        const data = await fetchWithRetry(`${API_BASE_URL}/api/stores`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedStore)
         });
+        if (data.error) {
+            showAlert(data.error, 'danger');
+        } else {
+            showAlert(data.message, 'success');
+            loadStores();
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Đã xảy ra lỗi khi lưu vị trí. Vui lòng thử lại.', 'danger');
+    }
 }
 
 function clearRoute() {
@@ -380,23 +421,21 @@ function clearRoute() {
     }
 }
 
-function debounce(func, wait) {
-    let timeout;
-    return function (...args) {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(this, args), wait);
-    };
-}
-
-function searchStores() {
+const searchStores = debounce(() => {
     const query = document.getElementById('searchInput').value;
     const district = document.getElementById('districtSelect').value;
     loadStores(query, district);
+}, 300);
+
+document.getElementById('searchInput').addEventListener('input', searchStores);
+
+// Validate file type
+function validateImageFile(file) {
+    const allowedTypes = ['image/jpeg', 'image/png'];
+    return file && allowedTypes.includes(file.type);
 }
 
-document.getElementById('searchInput').addEventListener('input', debounce(searchStores, 300));
-
-function createStore(event) {
+async function createStore(event) {
     event.preventDefault();
     if (!isAdmin) {
         showAlert('Vui lòng đăng nhập với quyền admin để sử dụng chức năng này!', 'warning');
@@ -418,49 +457,40 @@ function createStore(event) {
     document.getElementById('loadingSpinner').style.display = 'block';
     const fileInput = document.getElementById('image');
     const file = fileInput.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            store.image = e.target.result;
-            sendStoreCreateRequest(store);
-        };
-        reader.readAsDataURL(file);
-    } else {
-        sendStoreCreateRequest(store);
+    if (file && !validateImageFile(file)) {
+        showAlert('Vui lòng chọn file ảnh định dạng JPEG hoặc PNG.', 'warning');
+        document.getElementById('loadingSpinner').style.display = 'none';
+        return;
     }
-}
-
-function sendStoreCreateRequest(store) {
-    fetch(`${API_BASE_URL}/api/stores`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(store)
-    })
-        .then(response => {
-            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-            return response.json();
-        })
-        .then(data => {
-            if (data.error) {
-                showAlert(data.error, 'danger');
-            } else {
-                showAlert(data.message, 'success');
-                loadStores();
-                document.getElementById('storeForm').reset();
-                bootstrap.Modal.getInstance(document.getElementById('storeModal')).hide();
-                if (tempMarker) {
-                    map.removeLayer(tempMarker);
-                    tempMarker = null;
-                }
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showAlert('Đã xảy ra lỗi khi thêm chi nhánh. Vui lòng thử lại.', 'danger');
-        })
-        .finally(() => {
-            document.getElementById('loadingSpinner').style.display = 'none';
+    const formData = new FormData();
+    for (const key in store) {
+        formData.append(key, store[key]);
+    }
+    if (file) formData.append('image', file);
+    try {
+        const data = await fetchWithRetry(`${API_BASE_URL}/api/stores`, {
+            method: 'POST',
+            body: formData
         });
+        if (data.error) {
+            showAlert(data.error, 'danger');
+        } else {
+            showAlert(data.message, 'success');
+            statsData = null; // Invalidate stats cache
+            loadStores();
+            document.getElementById('storeForm').reset();
+            bootstrap.Modal.getInstance(document.getElementById('storeModal')).hide();
+            if (tempMarker) {
+                map.removeLayer(tempMarker);
+                tempMarker = null;
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Đã xảy ra lỗi khi thêm chi nhánh. Vui lòng thử lại.', 'danger');
+    } finally {
+        document.getElementById('loadingSpinner').style.display = 'none';
+    }
 }
 
 function editStore(store) {
@@ -478,11 +508,16 @@ function editStore(store) {
     document.getElementById('longitude').value = store.longitude;
     const modal = new bootstrap.Modal(document.getElementById('storeModal'));
     modal.show();
-    document.getElementById('storeForm').onsubmit = function(event) {
+    document.getElementById('storeForm').onsubmit = async function(event) {
         event.preventDefault();
         document.getElementById('loadingSpinner').style.display = 'block';
         const fileInput = document.getElementById('image');
         const file = fileInput.files[0];
+        if (file && !validateImageFile(file)) {
+            showAlert('Vui lòng chọn file ảnh định dạng JPEG hoặc PNG.', 'warning');
+            document.getElementById('loadingSpinner').style.display = 'none';
+            return;
+        }
         const updatedStore = {
             name: document.getElementById('name').value,
             address: document.getElementById('address').value,
@@ -498,80 +533,64 @@ function editStore(store) {
             document.getElementById('loadingSpinner').style.display = 'none';
             return;
         }
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                updatedStore.image = e.target.result;
-                sendStoreUpdateRequest(updatedStore);
-            };
-            reader.readAsDataURL(file);
-        } else {
-            updatedStore.image = store.image;
-            sendStoreUpdateRequest(updatedStore);
+        const formData = new FormData();
+        for (const key in updatedStore) {
+            formData.append(key, updatedStore[key]);
         }
-    };
-}
-
-function sendStoreUpdateRequest(updatedStore) {
-    fetch(`${API_BASE_URL}/api/stores`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedStore)
-    })
-        .then(response => {
-            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-            return response.json();
-        })
-        .then(data => {
+        if (file) {
+            formData.append('image', file);
+        } else if (store.image) {
+            formData.append('image', store.image);
+        }
+        try {
+            const data = await fetchWithRetry(`${API_BASE_URL}/api/stores`, {
+                method: 'PUT',
+                body: formData
+            });
             if (data.error) {
                 showAlert(data.error, 'danger');
             } else {
                 showAlert(data.message, 'success');
+                statsData = null; // Invalidate stats cache
                 loadStores();
                 document.getElementById('storeForm').reset();
                 bootstrap.Modal.getInstance(document.getElementById('storeModal')).hide();
                 document.getElementById('storeModalLabel').textContent = 'Thêm chi nhánh mới';
                 document.getElementById('storeForm').onsubmit = createStore;
             }
-        })
-        .catch(error => {
+        } catch (error) {
             console.error('Error:', error);
             showAlert('Đã xảy ra lỗi khi cập nhật chi nhánh. Vui lòng thử lại.', 'danger');
-        })
-        .finally(() => {
+        } finally {
             document.getElementById('loadingSpinner').style.display = 'none';
-        });
+        }
+    };
 }
 
-function deleteStore(name) {
+async function deleteStore(name) {
     if (!isAdmin) {
         showAlert('Vui lòng đăng nhập với quyền admin để sử dụng chức năng này!', 'warning');
         return;
     }
     if (confirm(`Xóa chi nhánh ${name}?`)) {
         document.getElementById('loadingSpinner').style.display = 'block';
-        fetch(`${API_BASE_URL}/api/stores?name=${encodeURIComponent(name)}`, {
-            method: 'DELETE'
-        })
-            .then(response => {
-                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-                return response.json();
-            })
-            .then(data => {
-                if (data.error) {
-                    showAlert(data.error, 'danger');
-                } else {
-                    showAlert(data.message, 'success');
-                    loadStores();
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showAlert('Đã xảy ra lỗi khi xóa chi nhánh. Vui lòng thử lại.', 'danger');
-            })
-            .finally(() => {
-                document.getElementById('loadingSpinner').style.display = 'none';
+        try {
+            const data = await fetchWithRetry(`${API_BASE_URL}/api/stores?name=${encodeURIComponent(name)}`, {
+                method: 'DELETE'
             });
+            if (data.error) {
+                showAlert(data.error, 'danger');
+            } else {
+                showAlert(data.message, 'success');
+                statsData = null; // Invalidate stats cache
+                loadStores();
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showAlert('Đã xảy ra lỗi khi xóa chi nhánh. Vui lòng thử lại.', 'danger');
+        } finally {
+            document.getElementById('loadingSpinner').style.display = 'none';
+        }
     }
 }
 
@@ -608,46 +627,44 @@ function showLoginModal() {
     modal.show();
 }
 
-function login(event) {
+async function login(event) {
     event.preventDefault();
     document.getElementById('loadingSpinner').style.display = 'block';
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
-
-    fetch(`${API_BASE_URL}/api/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-    })
-        .then(response => {
-            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-            return response.json();
-        })
-        .then(data => {
-            if (data.success && data.isAdmin) {
-                isAdmin = true;
-                currentUsername = username;
-                document.getElementById('loginBtn').style.display = 'none';
-                document.getElementById('logoutBtn').style.display = 'block';
-                document.getElementById('changePasswordBtn').style.display = 'block';
-                document.getElementById('addStoreBtn').style.display = 'block';
-                document.getElementById('mapAddBtn').style.display = 'block';
-                document.getElementById('editModeBtn').style.display = 'block';
-                showAlert('Đăng nhập thành công với quyền admin!', 'success');
-                loadStores();
-            } else {
-                showAlert('Tên đăng nhập hoặc mật khẩu không đúng, hoặc không có quyền admin!', 'danger');
-            }
-            document.getElementById('loginForm').reset();
-            bootstrap.Modal.getInstance(document.getElementById('loginModal')).hide();
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showAlert('Đã xảy ra lỗi khi đăng nhập. Vui lòng thử lại.', 'danger');
-        })
-        .finally(() => {
-            document.getElementById('loadingSpinner').style.display = 'none';
+    if (!username || !password) {
+        showAlert('Vui lòng điền đầy đủ tên đăng nhập và mật khẩu.', 'warning');
+        document.getElementById('loadingSpinner').style.display = 'none';
+        return;
+    }
+    try {
+        const data = await fetchWithRetry(`${API_BASE_URL}/api/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
         });
+        if (data.success && data.isAdmin) {
+            isAdmin = true;
+            currentUsername = username;
+            document.getElementById('loginBtn').style.display = 'none';
+            document.getElementById('logoutBtn').style.display = 'block';
+            document.getElementById('changePasswordBtn').style.display = 'block';
+            document.getElementById('addStoreBtn').style.display = 'block';
+            document.getElementById('mapAddBtn').style.display = 'block';
+            document.getElementById('editModeBtn').style.display = 'block';
+            showAlert('Đăng nhập thành công với quyền admin!', 'success');
+            loadStores();
+        } else {
+            showAlert('Tên đăng nhập hoặc mật khẩu không đúng, hoặc không có quyền admin!', 'danger');
+        }
+        document.getElementById('loginForm').reset();
+        bootstrap.Modal.getInstance(document.getElementById('loginModal')).hide();
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Đã xảy ra lỗi khi đăng nhập. Vui lòng thử lại.', 'danger');
+    } finally {
+        document.getElementById('loadingSpinner').style.display = 'none';
+    }
 }
 
 function logout() {
@@ -668,40 +685,39 @@ function showChangePasswordModal() {
     modal.show();
 }
 
-function changePassword(event) {
+async function changePassword(event) {
     event.preventDefault();
     document.getElementById('loadingSpinner').style.display = 'block';
     const username = currentUsername;
     const oldPassword = document.getElementById('oldPassword').value;
     const newPassword = document.getElementById('newPassword').value;
-
-    fetch(`${API_BASE_URL}/api/change-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, oldPassword, newPassword })
-    })
-        .then(response => {
-            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                showAlert('Đổi mật khẩu thành công!', 'success');
-                document.getElementById('changePasswordForm').reset();
-                bootstrap.Modal.getInstance(document.getElementById('changePasswordModal')).hide();
-            } else {
-                showAlert(data.message, 'danger');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showAlert('Đã xảy ra lỗi khi đổi mật khẩu. Vui lòng thử lại.', 'danger');
-        })
-        .finally(() => {
-            document.getElementById('loadingSpinner').style.display = 'none';
+    if (!oldPassword || !newPassword) {
+        showAlert('Vui lòng điền đầy đủ mật khẩu cũ và mới.', 'warning');
+        document.getElementById('loadingSpinner').style.display = 'none';
+        return;
+    }
+    try {
+        const data = await fetchWithRetry(`${API_BASE_URL}/api/change-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, oldPassword, newPassword })
         });
+        if (data.success) {
+            showAlert('Đổi mật khẩu thành công!', 'success');
+            document.getElementById('changePasswordForm').reset();
+            bootstrap.Modal.getInstance(document.getElementById('changePasswordModal')).hide();
+        } else {
+            showAlert(data.message, 'danger');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Đã xảy ra lỗi khi đổi mật khẩu. Vui lòng thử lại.', 'danger');
+    } finally {
+        document.getElementById('loadingSpinner').style.display = 'none';
+    }
 }
 
+// Initialize application
 document.getElementById('loginForm').onsubmit = login;
 document.getElementById('changePasswordForm').onsubmit = changePassword;
-loadStores();
+Promise.all([loadDistricts(), loadStores()]);
